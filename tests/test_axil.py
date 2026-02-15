@@ -91,7 +91,7 @@ async def axil_simple_test(dut):
 
     mem = [0] * 1024
 
-    for _ in range(1000):
+    for _ in range(1000000):
         addr = random.randint(0, 1023)
         data = random.randint(0, 0xFFFFFFFF)
         mem[addr] = data

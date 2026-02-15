@@ -1,0 +1,21 @@
+[build-system]
+requires = [
+  "scikit-build-core>=0.10",
+  "nanobind>=2.1",
+  "cocotb @ git+https://github.com/cocotb/cocotb.git",
+#  "cocotb-cpp,
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "axil-ext"
+version = "0.1.0"
+description = "AXI-Lite example extension for cocotb_cpp"
+requires-python = ">=3.10"
+dependencies = [
+#  "cocotb-cpp",
+]
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+wheel.packages = ["src/axil_ext"]

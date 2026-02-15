@@ -5,9 +5,9 @@ import os
 from pathlib import Path
 import shutil
 
-import cocotb_tools.config
 from cocotb_tools.runner import get_runner
-import subprocess
+
+from cmake_build import build_cpp_test_lib
 
 
 def test_dff_cpp_runner():
@@ -19,15 +19,8 @@ def test_dff_cpp_runner():
 
     sources = [proj_path / "dff.sv"]
 
-    cpp_src = proj_path / "test_dff.cpp"
-    cpp_so = Path("sim_build/lib_dff.so").resolve()
-    cocotb_include_path = cocotb_tools.config.share_dir / "include"
+    cpp_so = build_cpp_test_lib(proj_path, "cocotb_test_dff", "lib_dff")
     extra_env = {"GPI_USERS": f"{cpp_so},cocotb_entry_point"}
-    build_cpp_cmd = f"gcc -x c++ -std=c++20 -fPIC -shared \
-        -Wall -Wextra -Wpedantic \
-        -I. -I{proj_path / ".." / "src"} -I{cocotb_include_path} {cpp_src} \
-        -lstdc++ \
-        -o {cpp_so}".split()
 
     runner = get_runner(sim)
     runner.build(
@@ -35,10 +28,6 @@ def test_dff_cpp_runner():
         hdl_toplevel="dff",
         always=True,
     )
-
-    result = subprocess.run(build_cpp_cmd)
-    if result.returncode != 0:
-        raise RuntimeError(f"Failed to build C++ shared library (exit code {result.returncode})")
 
     # do not check for xml results file for now
     os.environ.pop("PYTEST_CURRENT_TEST", None)

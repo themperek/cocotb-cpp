@@ -405,11 +405,6 @@ class RisingEdge {
     Handle signal_;
 };
 
-inline Scheduler &Scheduler::instance() {
-    static Scheduler sched;
-    return sched;
-}
-
 inline void Scheduler::set_dut_handle(gpi_sim_hdl handle) {
     dut_handle_ = handle;
     dut_.reset();
@@ -953,8 +948,8 @@ inline Value &Value::operator=(int32_t value) {
     return *this;
 }
 
-static int on_sim_start(void * /*cb_data*/, int /*argc*/, char const *const * /*argv*/) {
-    LOG_INFO("Start of simulation");
+static int on_sim_start(void * /*cb_data*/) {
+    std::cout << "INFO: Start of simulation" << std::endl;
     gpi_sim_hdl top = gpi_get_root_handle(nullptr);
     if (!top) {
         if (const char *env_top = std::getenv("TOPLEVEL")) {
@@ -971,7 +966,7 @@ static int on_sim_start(void * /*cb_data*/, int /*argc*/, char const *const * /*
     return 0;
 }
 
-static void on_sim_end(void * /*cb_data*/) { LOG_INFO("End of simulation"); }
+static void on_sim_end(void * /*cb_data*/) { std::cout << "INFO: End of simulation" << std::endl; }
 
 inline void assert(bool condition, std::string_view message = {}) {
     if (!condition) {
@@ -983,7 +978,7 @@ inline void assert(bool condition, std::string_view message = {}) {
 }
 
 // Clock generator coroutine
-task<> Clock(Dut &dut, uint period, unit unit) {
+inline task<> Clock(Dut &dut, uint period, unit unit) {
     // cocotb::log.info("Starting clock_generator coroutine");
     // Lookup once
     auto clk = dut["clk"];
@@ -1002,17 +997,17 @@ task<> Clock(Dut &dut, uint period, unit unit) {
 // This function name should match what you specify in GPI_USERS
 // NOTE: This is called during library initialization, so we can't access
 // simulation objects here. We must register callbacks instead.
-extern "C" void cocotb_entry_point() {
+extern "C" __attribute__((visibility("default"), used, externally_visible)) inline void cocotb_entry_point() {
     if (!gpi_has_registered_impl()) {
-        LOG_ERROR("Error: No GPI implementation registered");
+        std::cerr << "ERROR: No GPI implementation registered" << std::endl;
         return;
     }
 
     if (gpi_register_start_of_sim_time_callback(&cocotb::on_sim_start, nullptr) != 0) {
-        LOG_ERROR("Failed to register start of simulation callback");
+        std::cerr << "ERROR: Failed to register start of simulation callback" << std::endl;
         return;
     }
 
     gpi_register_end_of_sim_time_callback(&cocotb::on_sim_end, nullptr);
-    LOG_INFO("Entry point registered");
+    std::cout << "INFO: Entry point registered" << std::endl;
 }
