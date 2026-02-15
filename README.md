@@ -1,6 +1,7 @@
 # cocotb-cpp - experimental playground
 
 This repository explores writing cocotb-style tests in modern C++, using coroutines and strong typing, with the goal of maintaining a Python-like test style while potentially improving simulation performance.
+
 Project also iclude demonstration of Python nanobind wrapper enables seamless top-level test control from Python while using high-performance C++ underneath.
 
 Thanks to recent changes to [cocotb](https://github.com/cocotb/cocotb/) (shoutout to [@ktbarrett](https://github.com/ktbarrett)), it is now possible to build directly against the GPI interface.
@@ -117,15 +118,17 @@ nox -s axil_ext_tests
 
 The following table compares simulation runtime for the reference AXI-Lite memory test (`tests/axil.sv`, random access, 1,000,000 writre/read transactions) with different cocotb/cocotb-cpp configurations. All results measured with Icarus Verilog 12.0 on the same machine.
 
-| Approach                | Execution Time | Speedup vs cocotb |
-|-------------------------|---------------|-------------------|
-| cocotb                  | 53.67s        | 1.00x             |
-| cocotb-cpp              | 12.63s        | 4.25x             |
-| cocotb-cpp + Python mix | 17.52s        | 3.01x             |
+| Approach                       | Execution Time | Speedup vs cocotb |
+|--------------------------------|---------------|-------------------|
+| cocotb                         | 53.67s        | 1.00x             |
+| cocotb-cpp                     | 12.63s        | 4.25x             |
+| cocotb-cpp + Python            | 31.42s        | 1.71x             |
+| cocotb-cpp + axil-cpp + Python | 17.52s        | 3.01x             |
 
 - **cocotb:** Standard Python-based cocotb testbench/driver (`tests/test_axil.py`). 
 - **cocotb-cpp:** Testbench, driver, and transaction logic implemented fully in C++ with cocotb-cpp API (`tests/test_axil.cpp`).
-- **cocotb-cpp + Python:** Mixed testbench, e.g., C++ driver invoked from Python test via cocotb-cpp bridge (`examples/axil_ext/tests/test_axil_ext.py`).
+- **cocotb-cpp + Python :** Python test via cocotb-cpp bridge (`tests/test_axil.py`)
+- **cocotb-cpp + axil-cpp + Python :** Mixed testbench, C++ driver invoked from Python test via cocotb-cpp bridge with AXI transtions in C++ (`examples/axil_ext/tests/test_axil_ext.py`).
 
 ### Status
 
