@@ -6,11 +6,27 @@ import os
 from pathlib import Path
 import shutil
 import random
+import pytest
+import importlib.util
 
 import cocotb
-from cocotb.triggers import RisingEdge, Timer
-from cocotb_tools.runner import get_runner
 
+if os.getenv("COCOTB_CPP_TESTS", "0") != "0":
+    from cocotb_cpp.triggers import RisingEdge, Timer
+else:
+    from cocotb.triggers import RisingEdge, Timer
+
+def conditional_cocotb_test():
+    if os.getenv("COCOTB_CPP_TESTS", "0") != "0":
+        # Return identity decorator (does nothing)
+        def identity(func):
+            return func
+        return identity
+    else:
+        return cocotb.test()
+        
+from cocotb_tools.runner import get_runner
+from cmake_build import build_cpp_test_lib
 
 class AxiLiteDriver:
     def __init__(self, dut, clk):
@@ -77,8 +93,7 @@ class AxiLiteDriver:
         self.dut.RREADY.value = 0
         return data
 
-
-@cocotb.test()
+@conditional_cocotb_test()
 async def axil_simple_test(dut):
     clk = dut.ACLK
 
@@ -91,7 +106,7 @@ async def axil_simple_test(dut):
 
     mem = [0] * 1024
 
-    for _ in range(1000000):
+    for _ in range(1_000_000):
         addr = random.randint(0, 1023)
         data = random.randint(0, 0xFFFFFFFF)
         mem[addr] = data
@@ -107,8 +122,24 @@ async def axil_simple_test(dut):
 
     await Timer(10, unit="ns")
 
+def _get_installed_pkg_dir(pkg_name: str) -> Path:
+    spec = importlib.util.find_spec(pkg_name)
+    if spec is None or not spec.submodule_search_locations:
+        raise RuntimeError(f"{pkg_name} is not installed")
+    return Path(next(iter(spec.submodule_search_locations))).resolve()
 
-def test_axil_runner():
+
+def _get_installed_cocotb_cpp_entry_path() -> Path:
+    pkg_dir = _get_installed_pkg_dir("cocotb_cpp")
+    candidates = sorted(pkg_dir.glob("cocotb_cpp_entry*"))
+    shared = [p for p in candidates if p.suffix in {".so", ".dylib", ".pyd"}]
+    if not shared:
+        raise RuntimeError(f"Could not find cocotb_cpp_entry shared library in {pkg_dir}")
+    return shared[0]
+
+@pytest.mark.parametrize("use_cpp", [True, False])
+def test_axil_runner(use_cpp):
+    
     shutil.rmtree("sim_build", ignore_errors=True)
 
     sim = os.getenv("SIM", "icarus")
@@ -117,6 +148,21 @@ def test_axil_runner():
 
     sources = [proj_path / "axil.sv"]
 
+    if use_cpp:
+        entry_so = _get_installed_cocotb_cpp_entry_path()
+        extra_env = {
+                "GPI_USERS": f"{entry_so},cocotb_entry_point",
+                "COCOTB_MODULE": "test_axil",
+                "COCOTB_TEST": "axil_simple_test",
+                "COCOTB_CPP_TESTS": str(Path(__file__).resolve().parent),
+            }
+        test_module = ""
+        # do not check for xml results file for now
+        os.environ.pop("PYTEST_CURRENT_TEST", None)
+    else:
+        extra_env = {}
+        test_module = "test_axil,"
+
     runner = get_runner(sim)
     runner.build(
         sources=sources,
@@ -124,8 +170,9 @@ def test_axil_runner():
         always=True,
     )
 
-    runner.test(hdl_toplevel="top", test_module="test_axil,")
+    runner.test(hdl_toplevel="top", test_module=test_module, extra_env=extra_env)
 
 
 if __name__ == "__main__":
-    test_axil_runner()
+    test_axil_runner(use_cpp=True)
+    test_axil_runner(use_cpp=False)

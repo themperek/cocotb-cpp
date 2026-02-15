@@ -45,8 +45,8 @@ class SimHandle {
     }
 
     bool valid() const { return handle_.valid(); }
-    int32_t get() const { return static_cast<int32_t>(handle_.value); }
-    void set(int32_t value) { handle_.value = value; }
+    uint32_t get() const { return static_cast<uint32_t>(handle_.value); }
+    void set(uint32_t value) { handle_.value = value; }
     const std::string &path() const { return path_; }
 
   private:
@@ -88,9 +88,9 @@ NB_MODULE(_native, m) {
         .def_prop_rw(
             "value",
             [](const SimHandle &self) { return self.get(); },
-            [](SimHandle &self, int32_t value) { self.set(value); })
+            [](SimHandle &self, int64_t value) { self.set(static_cast<uint32_t>(value)); })
         .def("get", &SimHandle::get)
-        .def("set", &SimHandle::set, "value"_a)
+        .def("set", [](SimHandle &self, int64_t value) { self.set(static_cast<uint32_t>(value)); }, "value"_a)
         .def_prop_ro("_path", &SimHandle::path)
         .def_prop_ro("path", &SimHandle::path);
 
